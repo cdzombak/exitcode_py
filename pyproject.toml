@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "exitcode"
+version = "0.0.1"
+description = "Generated constants for libc, LSB, BSD, and systemd exit codes."
+authors = ["Chris Dzombak <chris@dzombak.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
