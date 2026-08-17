@@ -1,0 +1,141 @@
+---
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  meta:
+    name: Derive Release Metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Derive version string
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+      - name: Determine whether this is a prerelease
+        id: prerelease
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [[ "$VERSION" =~ -(alpha|beta|rc)\. ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
+
+  # Runs first and gates everything else, so a version mismatch fails fast
+  # before any build or release work happens.
+  version-check:
+    name: Verify Version
+    needs: [meta]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install packaging
+        run: pip install --quiet packaging
+      # Compared as PEP 440 versions, not strings: the tag v1.2.3-rc.1 and the
+      # pyproject version 1.2.3rc1 are the same version.
+      - name: Check pyproject.toml version against tag
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          python - "$VERSION" <<'EOF'
+          import sys, tomllib
+          from packaging.version import InvalidVersion, Version
+
+          tag = sys.argv[1]
+          with open("pyproject.toml", "rb") as f:
+              project = tomllib.load(f)["project"]["version"]
+
+          try:
+              same = Version(project) == Version(tag)
+          except InvalidVersion as e:
+              print(f"::error::cannot parse version: {e}")
+              sys.exit(1)
+
+          if not same:
+              print(
+                  f"::error::pyproject.toml version {project!r} does not match "
+                  f"tag v{tag}. Bump pyproject.toml and re-tag."
+              )
+              sys.exit(1)
+
+          print(f"pyproject.toml version {project!r} matches tag v{tag}")
+          EOF
+
+  lint:
+    name: Lint
+    needs: [version-check]
+    uses: ./.github/workflows/lint.yml
+
+  release:
+    name: GitHub Release
+    needs: [meta, version-check, lint]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install poetry
+        run: pipx install poetry
+      - name: Build
+        run: poetry build
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.meta.outputs.version }}
+          prerelease: ${{ needs.meta.outputs.is_prerelease == 'true' }}
+          draft: false
+          generate_release_notes: true
+          files: dist/*
+          fail_on_unmatched_files: true
+
+  ntfy:
+    name: Ntfy
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    needs: [meta, version-check, lint, release]
+    steps:
+      - name: Send success notification
+        uses: niniyas/ntfy-action@master
+        if: ${{ !contains(needs.*.result, 'failure') }}
+        with:
+          url: "https://ntfy.cdzombak.net"
+          topic: "gha-builds"
+          priority: 3
+          headers: '{"authorization": "Bearer ${{ secrets.NTFY_TOKEN }}"}'
+          tags: white_check_mark
+          title: ${{ github.event.repository.name }} ${{ needs.meta.outputs.version }} available
+          details: ${{ github.event.repository.name }} version ${{ needs.meta.outputs.version }} is now available.
+      - name: Send failure notification
+        uses: niniyas/ntfy-action@master
+        if: ${{ contains(needs.*.result, 'failure') }}
+        with:
+          url: "https://ntfy.cdzombak.net"
+          topic: "gha-builds"
+          priority: 3
+          headers: '{"authorization": "Bearer ${{ secrets.NTFY_TOKEN }}"}'
+          tags: no_entry
+          title: ${{ github.event.repository.name }} ${{ needs.meta.outputs.version }} release failed
+          details: Release failed for ${{ github.event.repository.name }} version ${{ needs.meta.outputs.version }}.

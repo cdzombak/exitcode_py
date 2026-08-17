@@ -1,0 +1,57 @@
+---
+name: Lint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.13"
+  RUFF_VERSION: "0.16.3"
+
+jobs:
+  actionlint:
+    name: Actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Run actionlint
+        uses: raven-actions/actionlint@v2
+
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install tools
+        run: |
+          pipx install poetry
+          pipx install "ruff==${RUFF_VERSION}"
+      # --strict also fails if poetry.lock has drifted from pyproject.toml.
+      - name: Check project metadata
+        run: poetry check --strict
+      - name: Run ruff
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Build
+        run: poetry build
+      # The package has no test suite; this at least proves the built
+      # artifact installs and exposes the generated constants.
+      - name: Smoke test built wheel
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --quiet dist/*.whl
+          /tmp/smoke/bin/python -c "import exitcode; assert exitcode.SUCCESS == 0; assert exitcode.BPF == 245; print('import OK')"
