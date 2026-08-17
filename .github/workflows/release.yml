@@ -42,9 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install packaging
@@ -92,9 +92,9 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install poetry
@@ -102,7 +102,7 @@ jobs:
       - name: Build
         run: poetry build
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.meta.outputs.version }}
           prerelease: ${{ needs.meta.outputs.is_prerelease == 'true' }}
@@ -118,7 +118,7 @@ jobs:
     needs: [meta, version-check, lint, release]
     steps:
       - name: Send success notification
-        uses: niniyas/ntfy-action@master
+        uses: niniyas/ntfy-action@v1.0.6
         if: ${{ !contains(needs.*.result, 'failure') }}
         with:
           url: "https://ntfy.cdzombak.net"
@@ -129,7 +129,7 @@ jobs:
           title: ${{ github.event.repository.name }} ${{ needs.meta.outputs.version }} available
           details: ${{ github.event.repository.name }} version ${{ needs.meta.outputs.version }} is now available.
       - name: Send failure notification
-        uses: niniyas/ntfy-action@master
+        uses: niniyas/ntfy-action@v1.0.6
         if: ${{ contains(needs.*.result, 'failure') }}
         with:
           url: "https://ntfy.cdzombak.net"
