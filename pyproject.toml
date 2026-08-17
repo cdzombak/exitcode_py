@@ -1,13 +1,23 @@
-[tool.poetry]
+[project]
 name = "exitcode"
-version = "0.0.1"
+version = "0.0.2"
 description = "Generated constants for libc, LSB, BSD, and systemd exit codes."
-authors = ["Chris Dzombak <chris@dzombak.com>"]
+authors = [{ name = "Chris Dzombak", email = "chris@dzombak.com" }]
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.13,<4.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries",
+]
 
-[tool.poetry.dependencies]
-python = "^3.13"
+[project.urls]
+Homepage = "https://github.com/cdzombak/exitcode_py"
+
+[tool.poetry]
+packages = [{ include = "exitcode" }]
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0.0"]
 build-backend = "poetry.core.masonry.api"
