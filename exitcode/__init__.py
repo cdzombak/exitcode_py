@@ -1,6 +1,5 @@
 from typing import Final
 
-
 # SUCCESS: Generic success code. (from libc)
 SUCCESS: Final = 0
 
@@ -198,4 +197,3 @@ CREDENTIALS: Final = 243
 
 # BPF: Failed to apply BPF restrictions. (from systemd)
 BPF: Final = 245
-
