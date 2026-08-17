@@ -7,7 +7,7 @@ Python constants for libc, LSB, BSD, and systemd exit codes, based on [this list
 This package is not published to PyPI; the name `exitcode` there belongs to an unrelated project. Install it from this repo:
 
 ```shell
-pip install git+https://github.com/cdzombak/exitcode_py@v0.0.2
+pip install git+https://github.com/cdzombak/exitcode_py@v1.0.0
 ```
 
 A wheel and sdist are also attached to each [GitHub release](https://github.com/cdzombak/exitcode_py/releases).
